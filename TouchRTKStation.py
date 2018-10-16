@@ -2,7 +2,8 @@
 """
 @author: Yusuke Takahashi, Taro Suzuki, Waseda University
 """
-import sys,os,shlex,glob,time,re
+import sys,os,shlex,glob,time,re,signal
+import datetime
 from subprocess import Popen,PIPE,check_output
 from PyQt5.QtWidgets import (QWidget, QPushButton,QHBoxLayout, QVBoxLayout,QCheckBox,QGroupBox,QScrollArea,
  QApplication,QSizePolicy,QMainWindow,QMessageBox,QDialog,QTabWidget,QComboBox,QLabel,QLineEdit,QFormLayout,QGridLayout)
@@ -67,9 +68,10 @@ class MainWindow(QMainWindow):
     # Default Log/Solution stream configration
     log_flag = True
     sol_flag = True
-    dir = glob.glob('/media/*/*/') # Find USB memory
-    if len(dir)==0:
-        dir = [dirtrs+'/']
+    #dir = glob.glob('/media/*/*/') # Find USB memory
+    #if len(dir)==0:
+    #    dir = [dirtrs+'/']
+    dir = ['/media/pi/USB/']
     sol_filename = dir[0]+'%Y-%m%d-%h%M%S.pos'
     log_filename = dir[0]+'%Y-%m%d-%h%M%S.ubx'
 
@@ -109,20 +111,31 @@ class MainWindow(QMainWindow):
         self.main_w = MainWidget()
         self.setCentralWidget(self.main_w)
 
-        self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
-        # self.setGeometry(100, 100, 480, 320) # For debug
-        self.showFullScreen()
+        #self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
+        #self.setGeometry(0, 50, 300, 200) # For debug
+        #self.showFullScreen()
+        self.window().showMaximized()
 
         self.show()
 
     # Dispaly status in rover mode
     def updateRover(self):
+        self.main_w.lTime.setText(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
         rawsol=self.main_w.rtkrcvCommand(self.main_w.tn,'solution')
         print(rawsol)
         if len(rawsol)>34:
             soltypes=re.findall(r'\(.*\)',rawsol)
             soltype=soltypes[0][1:-1].strip()
             sols=re.findall(r'\d*\.\d*',rawsol)
+
+            if soltype=='SINGLE':
+                if self.main_w.time_set.text()!="Set System Time with GPS":
+                    sols=re.findall(r'\d+/\d+/\d+ \d+:\d+:\d+',rawsol)
+                    datetime_formatted = datetime.datetime.strptime(sols[0], "%Y/%m/%d %H:%M:%S")
+                    fixed_leap_time = (datetime_formatted-datetime.timedelta(seconds=18)).strftime('%Y/%m/%d %H:%M:%S')
+                    os.system("sudo date -s '" + fixed_leap_time + "' -u")
+                    self.main_w.time_set.setText("Time updating!")
+                    return
 
             self.main_w.lSol.setText(soltype)
             if soltype=='SINGLE':
@@ -156,6 +169,7 @@ class MainWindow(QMainWindow):
     
     # Dispaly status in base mode
     def updateBase(self):
+        self.main_w.lTime.setText(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
         rawstream = self.p.stderr.readline().decode('utf-8')
         print(rawstream)
 
@@ -184,19 +198,26 @@ class MainWidget(QWidget):
         fig=QPixmap(MainWindow.dirtrs+'/img/banner.png')
         bannar=QLabel(self)
         bannar.setPixmap(fig)
+
+        self.lTime=QLabel(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+        self.lTime.setFont(QFont('Helvetica',11))
         self.tabs=QTabWidget()
 
         self.tabRover=QWidget()
         self.tabBase=QWidget()
+        self.tabSetting = QWidget()
 
         self.tabs.addTab(self.tabRover,'Rover')
         self.tabs.addTab(self.tabBase,'Base')
+        self.tabs.addTab(self.tabSetting, 'Setting')
 
         self.tabRoverUI()
         self.tabBaseUI()
+        self.tabSettingUI()
 
         vbox=QVBoxLayout()
         vbox.addWidget(bannar)
+        vbox.addWidget(self.lTime)
         vbox.addWidget(self.tabs)
         self.setLayout(vbox)
 
@@ -342,6 +363,69 @@ class MainWidget(QWidget):
         # Show layout
         self.tabBase.setLayout(vbox)
 
+    # Setting tab
+    def tabSettingUI(self):
+        # Set Time button
+        self.time_set = QPushButton('Set System Time with GPS',self)
+        self.time_set.setCheckable(True)
+        self.time_set.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
+        self.time_set.toggled.connect(self.timeSettingToggled)
+        self.time_set.setFont(QFont('Helvetica',16))
+        # Check files button
+        self.checkfiles_set = QPushButton('Check files',self)
+        self.checkfiles_set.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
+        self.checkfiles_set.clicked.connect(self.filesCheckingToggled)
+        self.checkfiles_set.setFont(QFont('Helvetica',16))
+        # reboot button
+        self.reboot_set = QPushButton('reboot',self)
+        self.reboot_set.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
+        self.reboot_set.clicked.connect(self.rebootToggled)
+        self.reboot_set.setFont(QFont('Helvetica',16))
+        # shutdown button
+        self.shutdown_set = QPushButton('shutdown',self)
+        self.shutdown_set.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
+        self.shutdown_set.clicked.connect(self.shutdownToggled)
+        self.shutdown_set.setFont(QFont('Helvetica',16))
+        # Command window
+        self.status_base = QLabel('')
+        self.status_base.setFont(QFont('Helvetica',11))
+        scroll=QScrollArea()
+        scroll.setFrameShape(False)
+        scroll.setWidgetResizable(True)
+        scroll.setFixedHeight(25)
+        scroll.setWidget(self.status_base)
+        # Icon
+        fig=QPixmap(MainWindow.dirtrs+'/img/setting.png')
+        icon=QLabel(self)
+        icon.setPixmap(fig)
+        # Layout
+        hbox1 = QHBoxLayout()
+        hbox2 = QHBoxLayout()
+        vbox = QVBoxLayout()
+        vbox1_1 = QVBoxLayout()
+        #hbox1_1 = QHBoxLayout()
+        hbox1_2 = QHBoxLayout()
+        hbox1_3 = QHBoxLayout()
+        # hbox1
+        hbox1.addSpacing(10)
+        hbox1.addWidget(icon)
+        hbox1.addSpacing(10)
+        hbox1_2.addWidget(self.time_set)
+        hbox1_2.addWidget(self.checkfiles_set)
+        vbox1_1.addLayout(hbox1_2)
+        hbox1_3.addWidget(self.reboot_set)
+        hbox1_3.addWidget(self.shutdown_set)
+        vbox1_1.addLayout(hbox1_3)
+        hbox1.addLayout(vbox1_1)
+
+        # hbox2
+        hbox2.addWidget(scroll)
+        # Add to layout
+        vbox.addLayout(hbox1,1)
+        vbox.addLayout(hbox2)
+        # Show layout
+        self.tabSetting.setLayout(vbox)
+
     # Base config window
     def makeBaseConfig(self):
         subWindow=BaseConfigWindow(self)
@@ -368,12 +452,15 @@ class MainWidget(QWidget):
     # Start Rover button
     def startRoverToggled(self,checked):
         if checked:
+            os.system('pkill rtkrcv')
+            time.sleep(1)
             self.start_rov.setText('Stop')
             self.mode_spp.setDisabled(True)
             self.mode_rtks.setDisabled(True)
             self.mode_rtkk.setDisabled(True)
             self.config_rov.setDisabled(True)
             self.tabs.setTabEnabled(1, False)
+            self.tabs.setTabEnabled(2, False)
             exe = MainWindow.dirrtk+'/RTKLIB/app/rtkrcv/gcc/rtkrcv'
 
             optfile='single.conf'
@@ -382,7 +469,9 @@ class MainWidget(QWidget):
             if self.mode_rtkk.isChecked():
                 optfile='kinematic.conf'
 
-            main.p = Popen(exe+' -o '+MainWindow.dirtrs+'/conf/'+optfile+' -p '+str(self.tnport)+' -m 52001', shell=True)
+            main.p = Popen(
+                 exe+' -o '+MainWindow.dirtrs+'/conf/'+optfile+' -p '+str(self.tnport)+' -m 52001',
+                 shell=True,close_fds=True, preexec_fn=os.setsid)
             time.sleep(1)
             self.tn = telnetlib.Telnet('localhost',self.tnport)
 
@@ -418,14 +507,15 @@ class MainWidget(QWidget):
             self.mode_rtkk.setDisabled(False)
             self.config_rov.setDisabled(False)
             self.tabs.setTabEnabled(1, True)
+            self.tabs.setTabEnabled(2, True)
 
             main.rover_timer.stop()
-            main.p.terminate()
-            time.sleep(0.2)
-
+            
             # shutdown
-            self.tn.write('shutdown\r\n'.encode())
+            self.tn.write('stop\r\n'.encode())
             time.sleep(2)
+            os.killpg(main.p.pid, signal.SIGTERM)
+            time.sleep(1)
 
             self.status_rov.setText('')
             self.lSol.setText('')
@@ -436,9 +526,12 @@ class MainWidget(QWidget):
     # Start Base button
     def startBaseToggled(self,checked):
         if checked:
+            #os.system('pkill str2str')
+            #time.sleep(1)
             self.start_base.setText('Stop')
             self.config_base.setDisabled(True)
             self.tabs.setTabEnabled(0, False)
+            self.tabs.setTabEnabled(2, False)
             exe = MainWindow.dirrtk+'/RTKLIB/app/str2str/gcc/str2str'
             rcvcmd =' -c '+MainWindow.ubxcmd
             llhcmd =' -p '+MainWindow.basepos_lat+' '+MainWindow.basepos_lon+' '+MainWindow.basepos_hgt
@@ -451,10 +544,70 @@ class MainWidget(QWidget):
             self.start_base.setText('Start')
             self.config_base.setDisabled(False)
             self.tabs.setTabEnabled(0, True)
+            self.tabs.setTabEnabled(2, True)
             main.p.stderr.close()
             main.base_timer.stop()
             main.p.terminate()
             self.status_base.setText('')
+
+    # Time Setting button
+    def timeSettingToggled(self,checked):
+        if checked:
+            os.system('pkill rtkrcv')
+            time.sleep(1)
+            self.tabs.setTabEnabled(0, False)
+            self.tabs.setTabEnabled(1, False)
+            self.time_set.setText('Searching GPS...')
+            exe = MainWindow.dirrtk + '/RTKLIB/app/rtkrcv/gcc/rtkrcv'
+            optfile = 'single.conf'
+            main.p = Popen(
+                exe + ' -o ' + MainWindow.dirtrs + '/conf/' + optfile + ' -p ' + str(self.tnport) + ' -m 52001',
+                shell=True,close_fds=True, preexec_fn=os.setsid)
+            time.sleep(1)
+            self.tn = telnetlib.Telnet('localhost', self.tnport)
+            # login
+            self.tn.read_until(b'password: ')
+            self.rtkrcvCommand(self.tn, 'admin')
+            # Stream setting
+            itype, iformat, ipath, otype, oformat, opath, ltype, lformat, lpath = self.makeCommandRover()
+            for i, path in enumerate(ipath):
+                self.rtkrcvSetStream(self.tn, 'inpstr' + str(i + 1), itype[i], iformat[i], path)
+
+
+            # Receiver command
+            self.rtkrcvOption(self.tn, 'file-cmdfile1', MainWindow.ubxcmd)
+
+            self.rtkrcvCommand(self.tn, 'start')
+            main.rover_timer.start(1000)
+        else:
+            self.tabs.setTabEnabled(0, True)
+            self.tabs.setTabEnabled(1, True)
+            self.time_set.setText('Set System Time with GPS')
+            main.rover_timer.stop()
+
+            # shutdown
+            self.tn.write('stop\r\n'.encode())
+            time.sleep(2)
+            os.killpg(main.p.pid, signal.SIGTERM)
+            time.sleep(1)
+
+            self.status_rov.setText('')
+            self.lSol.setText('')
+            self.lLat.setText('')
+            self.lLon.setText('')
+            self.lAlt.setText('')
+
+    # Time Setting button
+    def filesCheckingToggled(self):
+        os.system("pcmanfm /media/pi/USB")
+
+    # reboot button
+    def rebootToggled(self):
+        os.system("sudo reboot")
+
+    # shutdown button
+    def shutdownToggled(self):
+        os.system("sudo shutdown -h now")
 
     # Single button
     def sppToggled(self,checked):

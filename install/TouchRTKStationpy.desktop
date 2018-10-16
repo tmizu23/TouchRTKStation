@@ -2,4 +2,5 @@
 Name=TouchRTKStation
 Type=Application
 Exec=/usr/bin/python3 /home/pi/TouchRTKStation/TouchRTKStation.py
+Icon=/home/pi/TouchRTKStation/img/rover.png
 Terminal=false
