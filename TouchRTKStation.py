@@ -29,10 +29,10 @@ class MainWindow(QMainWindow):
 
     # Default Base position configuration
     basepos_type = (['LLH','RTCM']) # for Rover
-    basepos_itype = 1 # for Rover
-    basepos_lat = '35.0'
-    basepos_lon = '139.0'
-    basepos_hgt = '50.0'
+    basepos_itype = 0 # for Rover
+    basepos_lat = '38.195030'
+    basepos_lon = '140.884273'
+    basepos_hgt = '7.2'
 
     # Default Input stream configration
     input_iport= 2         # ttyACM0
@@ -47,12 +47,12 @@ class MainWindow(QMainWindow):
     corr_type = (['NTRIP Client','TCP Client'])
     corr_itype = 0
     corr_format = (['RTCM2','RTCM3','BINEX','UBX'])
-    corr_iformat = 1
+    corr_iformat = 3
     corr_user = 'user'
-    corr_addr = 'test.net'
+    corr_addr = 'rtk2go.com'
     corr_port = '2101'
     corr_pw = 'password'
-    corr_mp = 'RTCM'
+    corr_mp = 'sendai_test'
 
     # Default Correction(Serial) stream configration
     corr2_flag = False
