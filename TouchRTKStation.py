@@ -98,6 +98,11 @@ class MainWindow(QMainWindow):
     output2_istopbits = 0    # 1 bit
     output2_iflowcontrol = 0 # None
 
+    # Base position
+    lat = []
+    lon = []
+    alt = []
+
     def __init__(self):
         super().__init__()
         self.initUI()
@@ -118,6 +123,12 @@ class MainWindow(QMainWindow):
 
         self.show()
 
+    def centerd_average(self,nums):
+          del nums[nums.index(min(nums))]
+          del nums[nums.index(max(nums))]
+          #print(nums)
+          return (nums,str(sum(nums)/len(nums)))
+
     # Dispaly status in rover mode
     def updateRover(self):
         self.main_w.lTime.setText(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
@@ -129,12 +140,23 @@ class MainWindow(QMainWindow):
             sols=re.findall(r'\d*\.\d*',rawsol)
 
             if soltype=='SINGLE':
-                if self.main_w.time_set.text()!="Set System Time with GPS":
-                    fixed_time=re.findall(r'\d+/\d+/\d+ \d+:\d+:\d+',rawsol)[0]
-                    #datetime_formatted = datetime.datetime.strptime(fixed_time, "%Y/%m/%d %H:%M:%S")
-                    #fixed_time = (datetime_formatted-datetime.timedelta(seconds=18)).strftime('%Y/%m/%d %H:%M:%S')
-                    os.system("sudo date -s '" + fixed_time + "'")
-                    self.main_w.time_set.setText("Time updated!")
+                if self.main_w.time_set.text()!="Set System Time and Position with GPS":
+                    self.lat.append(float(sols[1]))
+                    self.lon.append(float(sols[2]))
+                    self.alt.append(float(sols[3]))                    
+                    if len(self.lat) == 12:
+                       # Position Setting
+                       self.lat,ave_lat=self.centerd_average(self.lat)
+                       self.lon,ave_lon=self.centerd_average(self.lon)
+                       self.alt,ave_alt=self.centerd_average(self.alt)
+                       MainWindow.basepos_lat = ave_lat
+                       MainWindow.basepos_lon = ave_lon
+                       MainWindow.basepos_hgt = ave_alt
+                       #print("{},{},{}".format(ave_lat,ave_lon,ave_alt))
+                       # Time setting
+                       fixed_time=re.findall(r'\d+/\d+/\d+ \d+:\d+:\d+',rawsol)[0]
+                       os.system("sudo date -s '" + fixed_time + "'")
+                       self.main_w.time_set.setText("Updated!")
                     return
 
             self.main_w.lSol.setText(soltype)
@@ -366,7 +388,7 @@ class MainWidget(QWidget):
     # Setting tab
     def tabSettingUI(self):
         # Set Time button
-        self.time_set = QPushButton('Set System Time with GPS',self)
+        self.time_set = QPushButton('Set System Time and Position with GPS',self)
         self.time_set.setCheckable(True)
         self.time_set.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
         self.time_set.toggled.connect(self.timeSettingToggled)
@@ -582,7 +604,7 @@ class MainWidget(QWidget):
         else:
             self.tabs.setTabEnabled(0, True)
             self.tabs.setTabEnabled(1, True)
-            self.time_set.setText('Set System Time with GPS')
+            self.time_set.setText('Set System Time and Position with GPS')
             main.rover_timer.stop()
 
             # shutdown
@@ -1319,6 +1341,7 @@ class BasePosConfig_Base(QWidget):
         self.initBasePosUI()
 
     def initBasePosUI(self):
+        print(MainWindow.basepos_hgt)
         self.lat_edit=QLineEdit(MainWindow.basepos_lat)
         self.lon_edit=QLineEdit(MainWindow.basepos_lon)
         self.hgt_edit=QLineEdit(MainWindow.basepos_hgt)
