@@ -29,7 +29,7 @@ class MainWindow(QMainWindow):
 
     # Default Base position configuration
     basepos_type = (['LLH','RTCM']) # for Rover
-    basepos_itype = 0 # for Rover
+    basepos_itype = 1 # for Rover
     basepos_lat = '38.195030'
     basepos_lon = '140.884273'
     basepos_hgt = '7.2'
@@ -47,7 +47,7 @@ class MainWindow(QMainWindow):
     corr_type = (['NTRIP Client','TCP Client'])
     corr_itype = 0
     corr_format = (['RTCM2','RTCM3','BINEX','UBX'])
-    corr_iformat = 3
+    corr_iformat = 1
     corr_user = 'user'
     corr_addr = 'rtk2go.com'
     corr_port = '2101'
@@ -78,14 +78,14 @@ class MainWindow(QMainWindow):
     # Default Output stream configration
     output_flag = False
     output_type=(['TCP Server','NTRIP Server','NTRIP Caster'])
-    output_itype = 0    # TCP Server
+    output_itype = 1    # NTRIP Server
     output_format = (['UBX','RTCM3'])
-    output_iformat = 0  # UBX
+    output_iformat = 1  # RTCM3
     output_user = 'user'
-    output_addr = 'test.net'
+    output_addr = 'rtk2go.com'
     output_port = '2101'
-    output_pw = 'password'
-    output_mp = 'TRS'
+    output_pw = 'BETATEST'
+    output_mp = 'sendai_test'
 
     # Default Output(Serial) stream configration
     output2_flag = False
@@ -130,11 +130,11 @@ class MainWindow(QMainWindow):
 
             if soltype=='SINGLE':
                 if self.main_w.time_set.text()!="Set System Time with GPS":
-                    sols=re.findall(r'\d+/\d+/\d+ \d+:\d+:\d+',rawsol)
-                    datetime_formatted = datetime.datetime.strptime(sols[0], "%Y/%m/%d %H:%M:%S")
-                    fixed_leap_time = (datetime_formatted-datetime.timedelta(seconds=18)).strftime('%Y/%m/%d %H:%M:%S')
-                    os.system("sudo date -s '" + fixed_leap_time + "' -u")
-                    self.main_w.time_set.setText("Time updating!")
+                    fixed_time=re.findall(r'\d+/\d+/\d+ \d+:\d+:\d+',rawsol)[0]
+                    #datetime_formatted = datetime.datetime.strptime(fixed_time, "%Y/%m/%d %H:%M:%S")
+                    #fixed_time = (datetime_formatted-datetime.timedelta(seconds=18)).strftime('%Y/%m/%d %H:%M:%S')
+                    os.system("sudo date -s '" + fixed_time + "'")
+                    self.main_w.time_set.setText("Time updated!")
                     return
 
             self.main_w.lSol.setText(soltype)

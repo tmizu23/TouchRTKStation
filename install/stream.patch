@@ -1,0 +1,11 @@
+--- RTKLIB/src/stream.c	2018-10-25 15:55:31.507696599 +0900
++++ stream.c	2018-10-25 15:53:55.087492811 +0900
+@@ -678,7 +678,7 @@ static file_t *openfile(const char *path
+     file->swapintv=swapintv;
+     initlock(&file->lock);
+     
+-    time=utc2gpst(timeget());
++    time=timeadd(timeget(),9*3600.0);
+     
+     /* open new file */
+     if (!openfile_(file,time,msg)) {
