@@ -10,6 +10,8 @@ from PyQt5.QtWidgets import (QWidget, QPushButton,QHBoxLayout, QVBoxLayout,QChec
 from PyQt5.QtGui import QFont,QColor,QPixmap
 from PyQt5 import QtCore
 import telnetlib
+import statistics as st
+import math
 
 # Main Window
 class MainWindow(QMainWindow):
@@ -123,11 +125,23 @@ class MainWindow(QMainWindow):
 
         self.show()
 
+    def calc_accuracy(ave_lat,ave_lon,ave_alt,se_lat,se_lon,se_alt):
+        a=6378137.0
+        f=1/298.257223563
+        acc_alt=se_alt*2
+        l_lat=a*(1-f*f)*math.pi/(648000*pow(1-f*f*pow(math.sin(math.radians(ave_lat)),2),3.0/2))
+        acc_lat=se_lat*3600*l_lat*2
+        l_lon = a * math.cos(math.radians(ave_lon)) * math.pi / (648000 * math.sqrt(1 - f * f * pow(math.sin(math.radians(ave_lon)), 2)))
+        acc_lon=se_lon*3600*l_lon*2
+        return (acc_lat,acc_lon,acc_alt)
+
     def centerd_average(self,nums):
           del nums[nums.index(min(nums))]
           del nums[nums.index(max(nums))]
-          #print(nums)
-          return (nums,str(sum(nums)/len(nums)))
+          ave = mean(nums)
+          stdev = st.stdev(nums)
+          stder = stdev/math.sqrt(len(nums))
+          return (nums,ave,stder)
 
     # Dispaly status in rover mode
     def updateRover(self):
@@ -144,19 +158,22 @@ class MainWindow(QMainWindow):
                     self.lat.append(float(sols[1]))
                     self.lon.append(float(sols[2]))
                     self.alt.append(float(sols[3]))                    
-                    if len(self.lat) == 12:
+                    if len(self.lat) == 102:
                        # Position Setting
-                       self.lat,ave_lat=self.centerd_average(self.lat)
-                       self.lon,ave_lon=self.centerd_average(self.lon)
-                       self.alt,ave_alt=self.centerd_average(self.alt)
-                       MainWindow.basepos_lat = ave_lat
-                       MainWindow.basepos_lon = ave_lon
-                       MainWindow.basepos_hgt = ave_alt
-                       #print("{},{},{}".format(ave_lat,ave_lon,ave_alt))
+                       self.lat,ave_lat,se_lat=self.centerd_average(self.lat)
+                       self.lon,ave_lon,se_lon=self.centerd_average(self.lon)
+                       self.alt,ave_alt,se_alt=self.centerd_average(self.alt)
+                       acc_lat,acc_lon,acc_alt = self.calc_accuracy(ave_lat,ave_lon,ave_alt,se_lat,se_lon,se_alt)
+                       MainWindow.basepos_lat = str(ave_lat)
+                       MainWindow.basepos_lon = str(ave_lon)
+                       MainWindow.basepos_hgt = str(ave_alt)
                        # Time setting
                        fixed_time=re.findall(r'\d+/\d+/\d+ \d+:\d+:\d+',rawsol)[0]
                        os.system("sudo date -s '" + fixed_time + "'")
-                       self.main_w.time_set.setText("Updated!")
+                       self.main_w.time_set.setText("Updated!\n"\
+                                                    "lat:{:.5f}({:.2f})\n"\
+                                                    "lon:{:.5f}({:.2f})\n"\
+                                                    "alt:{:.2f}({:.2f})".format(ave_lat,ave_lon,ave_alt,acc_lat,acc_lon,acc_alt))
                     return
 
             self.main_w.lSol.setText(soltype)
