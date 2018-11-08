@@ -125,20 +125,20 @@ class MainWindow(QMainWindow):
 
         self.show()
 
-    def calc_accuracy(ave_lat,ave_lon,ave_alt,se_lat,se_lon,se_alt):
+    def calc_accuracy(self,ave_lat,ave_lon,ave_alt,se_lat,se_lon,se_alt):
         a=6378137.0
         f=1/298.257223563
         acc_alt=se_alt*2
         l_lat=a*(1-f*f)*math.pi/(648000*pow(1-f*f*pow(math.sin(math.radians(ave_lat)),2),3.0/2))
         acc_lat=se_lat*3600*l_lat*2
-        l_lon = a * math.cos(math.radians(ave_lon)) * math.pi / (648000 * math.sqrt(1 - f * f * pow(math.sin(math.radians(ave_lon)), 2)))
+        l_lon = a * math.cos(math.radians(ave_lat)) * math.pi / (648000 * math.sqrt(1 - f * f * pow(math.sin(math.radians(ave_lat)), 2)))
         acc_lon=se_lon*3600*l_lon*2
         return (acc_lat,acc_lon,acc_alt)
 
     def centerd_average(self,nums):
           del nums[nums.index(min(nums))]
           del nums[nums.index(max(nums))]
-          ave = mean(nums)
+          ave = st.mean(nums)
           stdev = st.stdev(nums)
           stder = stdev/math.sqrt(len(nums))
           return (nums,ave,stder)
@@ -154,16 +154,17 @@ class MainWindow(QMainWindow):
             sols=re.findall(r'\d*\.\d*',rawsol)
 
             if soltype=='SINGLE':
-                if self.main_w.time_set.text()!="Set System Time and Position with GPS":
+                if self.main_w.time_set.text()!="Set Time and Position":
                     self.lat.append(float(sols[1]))
                     self.lon.append(float(sols[2]))
                     self.alt.append(float(sols[3]))                    
-                    if len(self.lat) == 102:
+                    if len(self.lat) == 50:
                        # Position Setting
                        self.lat,ave_lat,se_lat=self.centerd_average(self.lat)
                        self.lon,ave_lon,se_lon=self.centerd_average(self.lon)
                        self.alt,ave_alt,se_alt=self.centerd_average(self.alt)
                        acc_lat,acc_lon,acc_alt = self.calc_accuracy(ave_lat,ave_lon,ave_alt,se_lat,se_lon,se_alt)
+                       print("{},{},{}".format(ave_lon,se_lon,acc_lon))
                        MainWindow.basepos_lat = str(ave_lat)
                        MainWindow.basepos_lon = str(ave_lon)
                        MainWindow.basepos_hgt = str(ave_alt)
@@ -173,7 +174,7 @@ class MainWindow(QMainWindow):
                        self.main_w.time_set.setText("Updated!\n"\
                                                     "lat:{:.5f}({:.2f})\n"\
                                                     "lon:{:.5f}({:.2f})\n"\
-                                                    "alt:{:.2f}({:.2f})".format(ave_lat,ave_lon,ave_alt,acc_lat,acc_lon,acc_alt))
+                                                    "alt:{:.2f}({:.2f})".format(ave_lat,acc_lat,ave_lon,acc_lon,ave_alt,acc_alt))
                     return
 
             self.main_w.lSol.setText(soltype)
@@ -405,7 +406,7 @@ class MainWidget(QWidget):
     # Setting tab
     def tabSettingUI(self):
         # Set Time button
-        self.time_set = QPushButton('Set System Time and Position with GPS',self)
+        self.time_set = QPushButton('Set Time and Position',self)
         self.time_set.setCheckable(True)
         self.time_set.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
         self.time_set.toggled.connect(self.timeSettingToggled)
@@ -621,7 +622,7 @@ class MainWidget(QWidget):
         else:
             self.tabs.setTabEnabled(0, True)
             self.tabs.setTabEnabled(1, True)
-            self.time_set.setText('Set System Time and Position with GPS')
+            self.time_set.setText('Set Time and Position')
             main.rover_timer.stop()
 
             # shutdown
