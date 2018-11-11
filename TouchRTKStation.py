@@ -494,7 +494,8 @@ class MainWidget(QWidget):
         if checked:
             os.system('pkill rtkrcv')
             time.sleep(1)
-            self.start_rov.setText('Stop')
+            starttime = datetime.datetime.now().strftime("%H:%M:%S")
+            self.start_rov.setText("Stop\n{}".format(starttime))
             self.mode_spp.setDisabled(True)
             self.mode_rtks.setDisabled(True)
             self.mode_rtkk.setDisabled(True)
@@ -568,7 +569,8 @@ class MainWidget(QWidget):
         if checked:
             #os.system('pkill str2str')
             #time.sleep(1)
-            self.start_base.setText('Stop')
+            starttime = datetime.datetime.now().strftime("%H:%M:%S")
+            self.start_base.setText("Stop\n{}".format(starttime))
             self.config_base.setDisabled(True)
             self.tabs.setTabEnabled(0, False)
             self.tabs.setTabEnabled(2, False)
