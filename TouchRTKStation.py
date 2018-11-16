@@ -9,9 +9,11 @@ from PyQt5.QtWidgets import (QWidget, QPushButton,QHBoxLayout, QVBoxLayout,QChec
  QApplication,QSizePolicy,QMainWindow,QMessageBox,QDialog,QTabWidget,QComboBox,QLabel,QLineEdit,QFormLayout,QGridLayout)
 from PyQt5.QtGui import QFont,QColor,QPixmap
 from PyQt5 import QtCore
+from pyqtlet import L, MapWidget
 import telnetlib
 import statistics as st
 import math
+import numpy as np
 
 # Main Window
 class MainWindow(QMainWindow):
@@ -175,15 +177,25 @@ class MainWindow(QMainWindow):
                                                     "lat:{:.5f}({:.2f})\n"\
                                                     "lon:{:.5f}({:.2f})\n"\
                                                     "alt:{:.2f}({:.2f})".format(ave_lat,acc_lat,ave_lon,acc_lon,ave_alt,acc_alt))
+                       marker = L.circleMarker([ave_lat, ave_lon],
+                                                    "{color: '#0000ff',radius:0.5,opacity: 0.5,fillColor: '#0000ff',fillOpacity: 0.5}")
+                       self.map.addLayer(marker)
                     return
 
             self.main_w.lSol.setText(soltype)
             if soltype=='SINGLE':
                 self.main_w.lSol.setStyleSheet('color: #ff0000; font-family: Helvetica; font-size: 11pt')
+                marker = L.circleMarker([sols[1], sols[2]],
+                                        "{color: '#ff0000',radius:0.5,opacity: 0.5,fillColor: '#0000ff',fillOpacity: 0.5}")
             if soltype=='FLOAT':
                 self.main_w.lSol.setStyleSheet('color: #ffd700; font-family: Helvetica; font-size: 11pt')
+                marker = L.circleMarker([sols[1], sols[2]],
+                                        "{color: '#ffd700',radius:0.5,opacity: 0.5,fillColor: '#0000ff',fillOpacity: 0.5}")
             if soltype=='FIX':
                 self.main_w.lSol.setStyleSheet('color: #008000; font-family: Helvetica; font-size: 11pt')
+                marker = L.circleMarker([sols[1], sols[2]],
+                                        "{color: '#008000',radius:0.5,opacity: 0.5,fillColor: '#0000ff',fillOpacity: 0.5}")
+            self.map.addLayer(marker)
             self.main_w.lLat.setText(sols[1])
             self.main_w.lLon.setText(sols[2])
             self.main_w.lAlt.setText(sols[3])
@@ -246,14 +258,17 @@ class MainWidget(QWidget):
         self.tabRover=QWidget()
         self.tabBase=QWidget()
         self.tabSetting = QWidget()
+        self.tabMap = QWidget()
 
         self.tabs.addTab(self.tabRover,'Rover')
         self.tabs.addTab(self.tabBase,'Base')
         self.tabs.addTab(self.tabSetting, 'Setting')
+        self.tabs.addTab(self.tabMap, 'Map')
 
         self.tabRoverUI()
         self.tabBaseUI()
         self.tabSettingUI()
+        self.tabMapUI()
 
         vbox=QVBoxLayout()
         vbox.addWidget(bannar)
@@ -466,6 +481,28 @@ class MainWidget(QWidget):
         # Show layout
         self.tabSetting.setLayout(vbox)
 
+    # Map tab
+    def tabMapUI(self):
+        vbox = QVBoxLayout()
+        # reset button
+        self.reset_set = QPushButton('reset',self)
+        self.reset_set.setSizePolicy(QSizePolicy.Expanding,QSizePolicy.Expanding)
+        self.reset_set.clicked.connect(self.resetToggled)
+        self.reset_set.setFont(QFont('Helvetica',16))
+        #map
+        self.mapWidget = MapWidget()
+        # Working with the maps with pyqtlet
+        self.map = L.map(self.mapWidget)
+        self.map.setView([35,135], 18)
+        L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/ort/{z}/{x}/{y}.jpg',"{maxZoom: 24,maxNativeZoom: 18}").addTo(self.map)
+        #for i,j in np.random.normal(0,0.00001,(100,2)):
+        #    self.marker = L.circleMarker([35+i,135+j], "{color: '#0000ff',radius:0.5,opacity: 0.5,fillColor: '#0000ff',fillOpacity: 0.5}")
+        #    self.map.addLayer(self.marker)
+        self.show()
+        vbox.addWidget(self.reset_set)
+        vbox.addWidget(self.mapWidget)
+        self.tabMap.setLayout(vbox)
+
     # Base config window
     def makeBaseConfig(self):
         subWindow=BaseConfigWindow(self)
@@ -642,6 +679,10 @@ class MainWidget(QWidget):
     # Time Setting button
     def filesCheckingToggled(self):
         os.system("pcmanfm /media/pi/USB")
+
+    # reboot button
+    def resetToggled(self):
+        pass
 
     # reboot button
     def rebootToggled(self):
