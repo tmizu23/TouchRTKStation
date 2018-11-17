@@ -179,7 +179,7 @@ class MainWindow(QMainWindow):
                                                     "alt:{:.2f}({:.2f})".format(ave_lat,acc_lat,ave_lon,acc_lon,ave_alt,acc_alt))
                        marker = L.circleMarker([ave_lat, ave_lon],
                                                     "{color: '#0000ff',radius:0.5,opacity: 0.5,fillColor: '#0000ff',fillOpacity: 0.5}")
-                       self.map.addLayer(marker)
+                       self.markers.addLayer(marker)
                     return
 
             self.main_w.lSol.setText(soltype)
@@ -195,7 +195,7 @@ class MainWindow(QMainWindow):
                 self.main_w.lSol.setStyleSheet('color: #008000; font-family: Helvetica; font-size: 11pt')
                 marker = L.circleMarker([sols[1], sols[2]],
                                         "{color: '#008000',radius:0.5,opacity: 0.5,fillColor: '#0000ff',fillOpacity: 0.5}")
-            self.map.addLayer(marker)
+            self.markers.addLayer(marker)
             self.main_w.lLat.setText(sols[1])
             self.main_w.lLon.setText(sols[2])
             self.main_w.lAlt.setText(sols[3])
@@ -371,7 +371,6 @@ class MainWidget(QWidget):
 
     # Rover config window
     def makeRoverConfig(self):
-        pass
         subWindow=RoverConfigWindow(self)
         subWindow.show()
 
@@ -495,9 +494,11 @@ class MainWidget(QWidget):
         self.map = L.map(self.mapWidget)
         self.map.setView([35,135], 18)
         L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/ort/{z}/{x}/{y}.jpg',"{maxZoom: 24,maxNativeZoom: 18}").addTo(self.map)
-        #for i,j in np.random.normal(0,0.00001,(100,2)):
-        #    self.marker = L.circleMarker([35+i,135+j], "{color: '#0000ff',radius:0.5,opacity: 0.5,fillColor: '#0000ff',fillOpacity: 0.5}")
-        #    self.map.addLayer(self.marker)
+        self.markers = L.layerGroup()
+        # for i,j in np.random.normal(0,0.00001,(100,2)):
+        #     self.marker = L.circleMarker([35+i,135+j], "{color: '#0000ff',radius:0.5,opacity: 0.5,fillColor: '#0000ff',fillOpacity: 0.5}")
+        #     self.markers.addLayer(self.marker)
+        self.map.addLayer(self.markers)
         self.show()
         vbox.addWidget(self.reset_set)
         vbox.addWidget(self.mapWidget)
@@ -682,7 +683,7 @@ class MainWidget(QWidget):
 
     # reboot button
     def resetToggled(self):
-        pass
+        self.markers.clearLayers();
 
     # reboot button
     def rebootToggled(self):
